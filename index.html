@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#05060f" />
+<title>我们在一起的日子</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: #03040a;
+    color: #f6f3ff;
+    font-family: "Noto Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .stage { position: fixed; inset: 0; }
+
+  canvas.bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    transition: opacity 1400ms cubic-bezier(.45, .05, .3, 1);
+    will-change: opacity;
+  }
+  canvas.bg.on { opacity: 1; }
+
+  #stars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+  .veil {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse 80% 72% at 50% 46%,
+      rgba(4, 4, 12, 0.10) 0%,
+      rgba(3, 4, 10, 0.38) 60%,
+      rgba(2, 3, 8, 0.76) 100%);
+  }
+
+  .wrap {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(28px, env(safe-area-inset-top)) 22px max(28px, env(safe-area-inset-bottom));
+    text-align: center;
+    z-index: 5;
+  }
+
+  .card {
+    position: relative;
+    width: min(780px, 100%);
+    padding: clamp(30px, 5.4vw, 62px) clamp(22px, 5vw, 58px);
+    animation: rise 900ms cubic-bezier(.2, .8, .2, 1) both;
+  }
+
+  /* 文字底下的暗晕：保证亮星云上也读得清，同时不遮死背景 */
+  .card::before {
+    content: "";
+    position: absolute;
+    inset: -16% -8%;
+    z-index: -1;
+    background: radial-gradient(ellipse 56% 52% at 50% 45%,
+      rgba(3, 3, 10, 0.70) 0%,
+      rgba(3, 3, 10, 0.44) 44%,
+      rgba(3, 3, 10, 0.12) 72%,
+      rgba(3, 3, 10, 0) 100%);
+    filter: blur(14px);
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .eyebrow {
+    font-size: clamp(12px, 1.5vw, 14px);
+    letter-spacing: 0.62em;
+    text-indent: 0.62em;
+    color: rgba(240, 235, 255, 0.66);
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.7);
+    margin-bottom: clamp(18px, 3vw, 26px);
+  }
+
+  .row { display: flex; align-items: baseline; justify-content: center; gap: clamp(8px, 1.4vw, 16px); }
+
+  .days {
+    font-family: "Didot", "Bodoni MT", "Times New Roman", serif;
+    font-size: clamp(88px, 21vw, 208px);
+    line-height: 0.86;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(180deg, #ffffff 6%, #efe8ff 44%, #c3b4f6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 30px rgba(178, 158, 255, 0.40)) drop-shadow(0 6px 26px rgba(0, 0, 0, 0.6));
+  }
+
+  .unit {
+    font-size: clamp(20px, 3.4vw, 32px);
+    color: rgba(240, 235, 255, 0.70);
+    letter-spacing: 0.2em;
+  }
+
+  .since {
+    margin-top: clamp(14px, 2.4vw, 20px);
+    font-size: clamp(13px, 1.7vw, 15px);
+    letter-spacing: 0.28em;
+    color: rgba(240, 235, 255, 0.56);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
+  }
+
+  .divider {
+    width: 64px; height: 1px;
+    margin: clamp(22px, 3.4vw, 30px) auto;
+    background: linear-gradient(90deg, transparent, rgba(244, 241, 255, 0.55), transparent);
+  }
+
+  .clock {
+    display: flex; align-items: flex-start; justify-content: center;
+    gap: clamp(10px, 2.2vw, 22px);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cell { min-width: clamp(52px, 8vw, 76px); }
+  .num {
+    font-size: clamp(26px, 4.4vw, 44px);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.96);
+    text-shadow: 0 0 22px rgba(150, 140, 255, 0.32), 0 2px 14px rgba(0, 0, 0, 0.7);
+  }
+  .lab {
+    margin-top: 8px;
+    font-size: clamp(11px, 1.3vw, 12px);
+    letter-spacing: 0.3em;
+    color: rgba(240, 235, 255, 0.50);
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  }
+
+  .word {
+    margin-top: clamp(24px, 3.6vw, 34px);
+    min-height: 1.6em;
+    font-size: clamp(13px, 1.9vw, 17px);
+    letter-spacing: 0.14em;
+    color: rgba(242, 238, 255, 0.86);
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75);
+    transition: opacity 700ms ease;
+  }
+
+  .beat {
+    margin-top: clamp(16px, 2.4vw, 22px);
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: clamp(11px, 1.3vw, 12px);
+    letter-spacing: 0.24em;
+    color: rgba(240, 235, 255, 0.54);
+    transition: opacity 400ms ease;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #ffd7ec;
+    animation: pulse 2.6s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 215, 236, 0.5); }
+    70%  { box-shadow: 0 0 0 12px rgba(255, 215, 236, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 215, 236, 0); }
+  }
+
+  @media (max-width: 520px) {
+    .wrap { padding-bottom: 190px; }
+    .card { padding: 22px 10px; }
+    .eyebrow { letter-spacing: 0.44em; text-indent: 0.44em; margin-bottom: 14px; }
+    .days { font-size: clamp(76px, 23vw, 116px); }
+    .since { letter-spacing: 0.14em; }
+    .word { font-size: 13px; letter-spacing: 0.10em; margin-top: 18px; }
+    .clock { gap: 6px; }
+    .cell { min-width: 58px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    canvas.bg { transition-duration: 0ms; }
+    .card { animation: none; }
+    .dot { animation: none; }
+  }
+
+  html.nofx canvas.bg { transition: none; }
+  html.nofx .card { animation: none; opacity: 1; transform: none; }
+  html.nofx .dot { animation: none; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <canvas class="bg"></canvas>
+  <canvas class="bg"></canvas>
+  <canvas class="bg"></canvas>
+  <canvas class="bg"></canvas>
+  <canvas class="bg"></canvas>
+  <canvas id="stars"></canvas>
+  <div class="veil"></div>
+
+  <div class="wrap">
+    <div class="card">
+      <div class="eyebrow">我们在一起</div>
+
+      <div class="row">
+        <div class="days" id="days">0</div>
+        <div class="unit">天</div>
+      </div>
+
+      <div class="since">2022.05.20 &nbsp;—&nbsp; 今天</div>
+
+      <div class="divider"></div>
+
+      <div class="clock">
+        <div class="cell"><div class="num" id="hh">00</div><div class="lab">时</div></div>
+        <div class="cell"><div class="num" id="mm">00</div><div class="lab">分</div></div>
+        <div class="cell"><div class="num" id="ss">00</div><div class="lab">秒</div></div>
+      </div>
+
+      <div class="word" id="word"></div>
+
+      <div class="beat"><span class="dot"></span><span id="beatText">还在跳动</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  if (location.search.indexOf("nofx") !== -1 || location.hash === "#static") {
+    document.documentElement.classList.add("nofx");
+  }
+
+  /* ================= 起点：2022 年 5 月 20 日 ================= */
+  const START = new Date(2022, 4, 20, 0, 0, 0);
+
+  const WORDS = [
+    "从那天起，宇宙里多了一颗只属于你的星。",
+    "第 {d} 天，还是想把每天都过成纪念日。",
+    "星系转过多少圈，我数到今天。",
+    "喜欢是藏不住的，像光走了一亿年也要到你眼里。",
+    "往后的每一天，都算额外奖励。"
+  ];
+  const BEATS = ["还在跳动", "一直跳动", "为你跳动", "心跳正常"];
+
+  const $ = (id) => document.getElementById(id);
+  const elDays = $("days"), elH = $("hh"), elM = $("mm"), elS = $("ss");
+  const elWord = $("word"), elBeat = $("beatText");
+  const pad = (n) => String(n).padStart(2, "0");
+
+  /* ================= 时间 ================= */
+  let lastDay = -1;
+
+  function tick() {
+    const now = new Date();
+    let diff = now - START;
+    if (diff < 0) diff = 0;
+
+    const days = Math.floor(diff / 86400000);
+    const rest = diff - days * 86400000;
+
+    if (days !== lastDay) {
+      lastDay = days;
+      elDays.textContent = days.toLocaleString("zh-CN");
+      const text = WORDS[days % WORDS.length].replace("{d}", days.toLocaleString("zh-CN"));
+      if (document.documentElement.classList.contains("nofx")) {
+        elWord.textContent = text;
+        elWord.style.opacity = "1";
+      } else {
+        elWord.style.opacity = "0";
+        setTimeout(() => { elWord.textContent = text; elWord.style.opacity = "1"; }, 240);
+      }
+    }
+    elH.textContent = pad(Math.floor(rest / 3600000));
+    elM.textContent = pad(Math.floor((rest % 3600000) / 60000));
+    elS.textContent = pad(Math.floor((rest % 60000) / 1000));
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  let beatIndex = 0;
+  setInterval(() => {
+    beatIndex = (beatIndex + 1) % BEATS.length;
+    elBeat.style.opacity = "0";
+    setTimeout(() => { elBeat.textContent = BEATS[beatIndex]; elBeat.style.opacity = "1"; }, 380);
+  }, 6500);
+
+  /* ================= 基础工具 ================= */
+  const bgLayers = Array.from(document.querySelectorAll("canvas.bg"));
+  const starsCanvas = $("stars");
+  const sctx = starsCanvas.getContext("2d");
+
+  let W = 0, H = 0;
+
+  function rng(seed) {
+    let a = seed | 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const gauss = (r) => (r() + r() + r() - 1.5) / 1.5;
+  const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
+  const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => a + (b - a) * t;
+
+  /* ---- 值噪声 / fBm（星云用） ---- */
+  function vhash(ix, iy, seed) {
+    let h = Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(seed, 144665);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
+  function vnoise(x, y, seed) {
+    const ix = Math.floor(x), iy = Math.floor(y);
+    const fx = x - ix, fy = y - iy;
+    const u = fx * fx * (3 - 2 * fx);
+    const v = fy * fy * (3 - 2 * fy);
+    const a = vhash(ix, iy, seed), b = vhash(ix + 1, iy, seed);
+    const c = vhash(ix, iy + 1, seed), d = vhash(ix + 1, iy + 1, seed);
+    return mix(mix(a, b, u), mix(c, d, u), v);
+  }
+
+  function fbm(x, y, seed, oct) {
+    let sum = 0, amp = 0.5, f = 1, norm = 0;
+    for (let i = 0; i < oct; i++) {
+      sum += vnoise(x * f, y * f, seed + i * 17) * amp;
+      norm += amp;
+      amp *= 0.5; f *= 2.03;
+    }
+    return sum / norm;
+  }
+
+  // 脊状：让云有丝缕感
+  function ridged(x, y, seed, oct) {
+    let sum = 0, amp = 0.5, f = 1, norm = 0;
+    for (let i = 0; i < oct; i++) {
+      const n = 1 - Math.abs(vnoise(x * f, y * f, seed + i * 31) * 2 - 1);
+      sum += n * n * amp;
+      norm += amp;
+      amp *= 0.52; f *= 2.07;
+    }
+    return sum / norm;
+  }
+
+  /* ---- 星点 ---- */
+  function star(ctx, x, y, r, a, warm) {
+    ctx.globalCompositeOperation = "lighter";
+    const rad = Math.max(r * 2.4, 1.1);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+    g.addColorStop(0, "rgba(255,255,255," + a.toFixed(3) + ")");
+    g.addColorStop(0.36, warm ? "rgba(255,228,240," + (a * 0.40).toFixed(3) + ")" : "rgba(216,230,255," + (a * 0.36).toFixed(3) + ")");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255," + a.toFixed(3) + ")";
+    ctx.beginPath(); ctx.arc(x, y, Math.max(r * 0.55, 0.3), 0, 6.2832); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+
+  function starField(ctx, w, h, r, count, bandFn) {
+    for (let i = 0; i < count; i++) {
+      let x, y;
+      if (bandFn) { const p = bandFn(r); x = p[0]; y = p[1]; }
+      else { x = r() * w; y = r() * h; }
+      const mag = Math.pow(r(), 3.4);
+      const rad = 0.26 + mag * 1.45;
+      const a = 0.20 + mag * 0.74 + r() * 0.14;
+      star(ctx, x, y, rad, Math.min(a, 0.98), r() > 0.87);
+    }
+  }
+
+  /* ---- 噪声星云（离屏低分辨率 → 放大，柔且快） ---- */
+  const noiseCanvas = document.createElement("canvas");
+
+  function paintNebula(ctx, w, h, cfg) {
+    const ratio = w / h;
+    const rw = Math.max(180, Math.min(cfg.res || 620, Math.round(w * 0.55)));
+    const rh = Math.max(120, Math.round(rw / ratio));
+
+    noiseCanvas.width = rw;
+    noiseCanvas.height = rh;
+    const nctx = noiseCanvas.getContext("2d");
+    const img = nctx.createImageData(rw, rh);
+    const data = img.data;
+
+    const scale = cfg.scale;
+    const seed = cfg.seed;
+    const [r0, g0, b0] = cfg.dark;
+    const [r1, g1, b1] = cfg.mid;
+    const [r2, g2, b2] = cfg.bright;
+    const [r3, g3, b3] = cfg.rim;
+
+    for (let y = 0; y < rh; y++) {
+      const ny = y / rh;
+      for (let x = 0; x < rw; x++) {
+        const nx = x / rw;
+
+        // 大尺度团块 + 丝缕
+        const cloud = fbm(nx * scale, ny * scale * ratio * 0.9, seed, 5);
+        const fil = ridged(nx * scale * 1.7 + 11.3, ny * scale * 1.55 + 4.1, seed + 91, 4);
+
+        // 中心聚焦：四周压暗，形成“深空里的一团”
+        const dx = (nx - cfg.cx) * 1.35;
+        const dy = (ny - cfg.cy) * 1.1;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const focus = 1 - smoothstep(0.18, 0.92, dist);
+
+        let d = clamp01(cloud * 0.72 + fil * 0.62 - 0.34) * (0.35 + focus * 0.95);
+        d = Math.pow(clamp01(d), 1.25);
+
+        // 基础色：深空 → 星云中间色
+        let rr = mix(r0, r1, smoothstep(0.0, 0.55, d));
+        let gg = mix(g0, g1, smoothstep(0.0, 0.55, d));
+        let bb = mix(b0, b1, smoothstep(0.0, 0.55, d));
+
+        // 云脊提亮
+        const hi = smoothstep(0.52, 0.95, d);
+        rr = mix(rr, r2, hi * 0.85);
+        gg = mix(gg, g2, hi * 0.85);
+        bb = mix(bb, b2, hi * 0.85);
+
+        // 极亮处泛冷白边
+        const edge = smoothstep(0.80, 1.0, d);
+        rr = mix(rr, r3, edge * 0.55);
+        gg = mix(gg, g3, edge * 0.55);
+        bb = mix(bb, b3, edge * 0.55);
+
+        // 暗尘：把深处压得更黑，拉开对比
+        const dust = smoothstep(0.62, 1.0, ridged(nx * scale * 2.4 + 51.7, ny * scale * 2.2 + 8.9, seed + 55, 3));
+        const dark = 1 - dust * 0.42 * (1 - smoothstep(0.75, 1, d));
+        rr *= dark; gg *= dark; bb *= dark;
+
+        const i = (y * rw + x) * 4;
+        data[i] = rr; data[i + 1] = gg; data[i + 2] = bb; data[i + 3] = 255;
+      }
+    }
+
+    nctx.putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(noiseCanvas, 0, 0, rw, rh, 0, 0, w, h);
+
+    // 星点画在原始分辨率上，避免被放大糊掉
+    const r = rng(seed + 7);
+    starField(ctx, w, h, r, Math.round(w * h / 5200));
+
+    // 少量亮星
+    const r2g = rng(seed + 29);
+    for (let i = 0; i < 26; i++) {
+      const x = r2g() * w, y = r2g() * h;
+      const rad = 1.1 + r2g() * 1.9;
+      star(ctx, x, y, rad, 0.85 + r2g() * 0.13, r2g() > 0.6);
+    }
+  }
+
+  /* ---------- 场景 1：紫色旋涡星系 ---------- */
+  function sceneSpiral(ctx, w, h) {
+    const r = rng(20220520);
+    const S = Math.min(w, h);
+    const cx = w * 0.5;
+    const cy = h * (w < 620 ? 0.82 : 0.63);
+    const tilt = 0.58;
+
+    const base = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.9);
+    base.addColorStop(0, "#170f30");
+    base.addColorStop(0.42, "#0b0819");
+    base.addColorStop(1, "#020209");
+    ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+
+    ctx.globalCompositeOperation = "lighter";
+
+    // 外围气晕（椭圆）
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, tilt);
+    const halo = ctx.createRadialGradient(0, 0, S * 0.04, 0, 0, S * 0.62);
+    halo.addColorStop(0, "rgba(186,158,255,0.24)");
+    halo.addColorStop(0.34, "rgba(120,86,225,0.12)");
+    halo.addColorStop(1, "rgba(40,15,80,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(0, 0, S * 0.62, 0, 6.2832); ctx.fill();
+    ctx.restore();
+
+    // 盘面弥散（旋臂之间的底光）
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, tilt);
+    const disk = ctx.createRadialGradient(0, 0, 0, 0, 0, S * 0.42);
+    disk.addColorStop(0, "rgba(150,120,255,0.07)");
+    disk.addColorStop(0.5, "rgba(110,85,220,0.05)");
+    disk.addColorStop(1, "rgba(60,30,140,0)");
+    ctx.fillStyle = disk;
+    ctx.beginPath(); ctx.arc(0, 0, S * 0.42, 0, 6.2832); ctx.fill();
+    ctx.restore();
+
+    // 核球：密集小点
+    for (let i = 0; i < 2600; i++) {
+      const rad = Math.abs(gauss(r)) * S * 0.055;
+      const ang = r() * 6.2832;
+      const x = cx + Math.cos(ang) * rad;
+      const y = cy + Math.sin(ang) * rad * tilt;
+      const a = 0.10 + r() * 0.34;
+      ctx.fillStyle = "hsla(" + (268 + r() * 40).toFixed(0) + ",70%," + (78 + r() * 18).toFixed(0) + "%," + a.toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(x, y, 0.3 + Math.pow(r(), 3) * 1.5, 0, 6.2832); ctx.fill();
+    }
+
+    // 两条主旋臂 + 两条弱臂
+    const arms = [
+      { n: 2400, phase: 0.0, w: 1.0 },
+      { n: 2400, phase: Math.PI, w: 1.0 },
+      { n: 900, phase: Math.PI / 2, w: 0.55 },
+      { n: 900, phase: -Math.PI / 2, w: 0.55 }
+    ];
+
+    // 旋臂气体：大而淡的团，把“点线”变成“臂”
+    for (const arm of arms) {
+      for (let i = 0; i < 260; i++) {
+        const t = 0.4 + Math.pow(r(), 0.7) * 5.0;
+        const rr = t * S * 0.068;
+        const ang = t * 0.94 + arm.phase + gauss(r) * 0.13;
+        const x = cx + Math.cos(ang) * rr;
+        const y = cy + Math.sin(ang) * rr * tilt;
+        const rad = (14 + r() * 46) * (0.6 + t * 0.16);
+        const outer = clamp01((t - 1.2) / 4.0);
+        const hue = mix(286, 236, outer);
+        const g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+        g.addColorStop(0, "hsla(" + hue.toFixed(0) + ",86%,70%,0.030)");
+        g.addColorStop(0.45, "hsla(" + hue.toFixed(0) + ",86%,66%,0.014)");
+        g.addColorStop(1, "hsla(" + hue.toFixed(0) + ",88%,60%,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.2832); ctx.fill();
+      }
+    }
+
+    for (const arm of arms) {
+      for (let i = 0; i < arm.n; i++) {
+        const t = 0.35 + Math.pow(i / arm.n, 0.62) * 5.2;
+        const rr = t * S * 0.072;
+        const spread = gauss(r) * S * 0.020 * (0.55 + t * 0.20);
+        const ang = t * 0.94 + arm.phase + gauss(r) * 0.10;
+        const x = cx + Math.cos(ang) * rr + Math.cos(ang + 1.57) * spread;
+        const y = cy + (Math.sin(ang) * rr + Math.sin(ang + 1.57) * spread) * tilt;
+
+        const outer = clamp01((t - 1.4) / 4.0);
+        const hue = mix(282, 228, outer) + gauss(r) * 10;
+        const light = mix(70, 80, outer) + r() * 10;
+        const alpha = (0.07 + r() * 0.27) * (1 - smoothstep(4.8, 6.4, t)) * arm.w;
+        if (alpha <= 0.002) continue;
+
+        ctx.fillStyle = "hsla(" + hue.toFixed(0) + ",88%," + light.toFixed(0) + "%," + alpha.toFixed(3) + ")";
+        ctx.beginPath(); ctx.arc(x, y, 0.3 + Math.pow(r(), 2.5) * 2.4, 0, 6.2832); ctx.fill();
+      }
+    }
+
+    // HII 亮结（粉紫色团）
+    for (let i = 0; i < 110; i++) {
+      const t = 0.7 + r() * 4.4;
+      const rr = t * S * 0.072;
+      const ang = t * 0.94 + (r() > 0.5 ? Math.PI : 0) + gauss(r) * 0.08;
+      const x = cx + Math.cos(ang) * rr;
+      const y = cy + Math.sin(ang) * rr * tilt;
+      const rad = 1.4 + r() * 3.2;
+      const g = ctx.createRadialGradient(x, y, 0, x, y, rad * 3.6);
+      g.addColorStop(0, "rgba(255,196,240,0.40)");
+      g.addColorStop(0.36, "rgba(255,140,220,0.13)");
+      g.addColorStop(1, "rgba(255,150,225,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rad * 3.6, 0, 6.2832); ctx.fill();
+    }
+
+    // 核心强光
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, S * 0.13);
+    core.addColorStop(0, "rgba(255,253,255,0.98)");
+    core.addColorStop(0.18, "rgba(240,226,255,0.70)");
+    core.addColorStop(0.52, "rgba(160,120,250,0.20)");
+    core.addColorStop(1, "rgba(90,50,180,0)");
+    ctx.fillStyle = core; ctx.beginPath(); ctx.arc(cx, cy, S * 0.13, 0, 6.2832); ctx.fill();
+
+    ctx.globalCompositeOperation = "source-over";
+    starField(ctx, w, h, r, Math.round(w * h / 8000));
+  }
+
+  /* ---------- 场景 5：银河带 ---------- */
+  function sceneMilkyWay(ctx, w, h) {
+    const r = rng(1107);
+    const S = Math.max(w, h);
+
+    const base = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, S * 0.95);
+    base.addColorStop(0, "#0e1229");
+    base.addColorStop(0.55, "#070a18");
+    base.addColorStop(1, "#02030a");
+    ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+
+    const cx = w * 0.5, cy = h * 0.5;
+    const ang = -0.46;
+    const ux = Math.cos(ang), uy = Math.sin(ang);
+    const nx = -uy, ny = ux;
+    const L = S * 1.3;
+    const B = S * 0.30;
+
+    const at = (rr, sp) => [cx + ux * rr + nx * sp, cy + uy * rr + ny * sp];
+
+    ctx.globalCompositeOperation = "lighter";
+
+    // 带子的柔光（沿带方向画一条渐隐的宽带）
+    for (let i = 0; i < 900; i++) {
+      const rr = (r() - 0.5) * L;
+      const sp = gauss(r) * B * 0.30;
+      const p = at(rr, sp);
+      const rad = 18 + r() * 90;
+      const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad);
+      const warmth = clamp01(1 - Math.abs(rr) / (L * 0.42));
+      g.addColorStop(0, "rgba(" + Math.round(mix(150, 235, warmth)) + "," + Math.round(mix(178, 222, warmth)) + "," + Math.round(mix(255, 200, warmth)) + ",0.045)");
+      g.addColorStop(1, "rgba(120,150,255,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], rad, 0, 6.2832); ctx.fill();
+    }
+
+    // 密集星尘
+    for (let i = 0; i < 5200; i++) {
+      const rr = (r() - 0.5) * L;
+      const sp = gauss(r) * B * 0.26;
+      const p = at(rr, sp);
+      const a = 0.05 + r() * 0.30;
+      ctx.fillStyle = "hsla(" + (200 + r() * 60).toFixed(0) + ",78%," + (78 + r() * 18).toFixed(0) + "%," + a.toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(p[0], p[1], 0.26 + Math.pow(r(), 3) * 1.3, 0, 6.2832); ctx.fill();
+    }
+
+    // 暖色核心
+    for (let i = 0; i < 300; i++) {
+      const rr = gauss(r) * L * 0.18;
+      const sp = gauss(r) * B * 0.14;
+      const p = at(rr, sp);
+      const rad = 2 + Math.pow(r(), 2) * 8;
+      const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad * 2);
+      g.addColorStop(0, "rgba(255,240,214,0.14)");
+      g.addColorStop(1, "rgba(255,214,160,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], rad * 2, 0, 6.2832); ctx.fill();
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+
+    // 尘埃：细长暗纹（不要大块黑斑）
+    for (let i = 0; i < 260; i++) {
+      const rr = (r() - 0.5) * L * 0.95;
+      const sp = gauss(r) * B * 0.10;
+      const p = at(rr, sp);
+      const rad = 6 + r() * 22;
+      const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad);
+      g.addColorStop(0, "rgba(3,4,10,0.30)");
+      g.addColorStop(1, "rgba(3,4,10,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], rad, 0, 6.2832); ctx.fill();
+    }
+
+    // 星：带内 78%
+    starField(ctx, w, h, r, Math.round(w * h / 1500), (rr) => {
+      if (rr() < 0.78) return at((rr() - 0.5) * L, gauss(rr) * B * 0.30);
+      return [rr() * w, rr() * h];
+    });
+
+    // 亮星十字光芒
+    for (let i = 0; i < 12; i++) {
+      const p = i < 8 ? at((r() - 0.5) * L * 0.85, gauss(r) * B * 0.22) : [r() * w, r() * h];
+      const rad = 1.5 + r() * 2.2;
+      star(ctx, p[0], p[1], rad, 0.95, r() > 0.62);
+      ctx.globalCompositeOperation = "lighter";
+      const gl = ctx.createLinearGradient(p[0] - rad * 10, p[1], p[0] + rad * 10, p[1]);
+      gl.addColorStop(0, "rgba(255,255,255,0)");
+      gl.addColorStop(0.5, "rgba(255,255,255,0.28)");
+      gl.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = gl;
+      ctx.fillRect(p[0] - rad * 10, p[1] - 0.5, rad * 20, 1);
+      const gv = ctx.createLinearGradient(p[0], p[1] - rad * 10, p[0], p[1] + rad * 10);
+      gv.addColorStop(0, "rgba(255,255,255,0)");
+      gv.addColorStop(0.5, "rgba(255,255,255,0.24)");
+      gv.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = gv;
+      ctx.fillRect(p[0] - 0.5, p[1] - rad * 10, 1, rad * 20);
+      ctx.globalCompositeOperation = "source-over";
+    }
+  }
+
+  const SCENES = [
+    sceneSpiral,
+    (ctx, w, h) => paintNebula(ctx, w, h, {
+      seed: 7121, scale: 2.3, cx: 0.46, cy: 0.50, res: 640,
+      dark: [3, 8, 24], mid: [30, 68, 142], bright: [124, 178, 246], rim: [206, 232, 255]
+    }),
+    (ctx, w, h) => paintNebula(ctx, w, h, {
+      seed: 9134, scale: 2.4, cx: 0.54, cy: 0.46, res: 640,
+      dark: [10, 2, 8], mid: [96, 22, 52], bright: [214, 96, 128], rim: [255, 196, 196]
+    }),
+    (ctx, w, h) => paintNebula(ctx, w, h, {
+      seed: 4417, scale: 2.8, cx: 0.5, cy: 0.5, res: 640,
+      dark: [2, 10, 14], mid: [10, 64, 74], bright: [64, 198, 186], rim: [176, 255, 240]
+    }),
+    sceneMilkyWay
+  ];
+
+  function paintBackgrounds() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.4);
+    bgLayers.forEach((cv, i) => {
+      cv.width = Math.round(W * dpr);
+      cv.height = Math.round(H * dpr);
+      const ctx = cv.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      SCENES[i](ctx, W, H);
+    });
+  }
+
+  /* ================= 前景闪烁星 ================= */
+  let twinkles = [];
+  function seedTwinkles() {
+    const r = rng(31337);
+    const count = Math.min(190, Math.round((W * H) / 14000));
+    twinkles = [];
+    for (let i = 0; i < count; i++) {
+      twinkles.push({
+        x: r() * W, y: r() * H,
+        r: 0.32 + r() * 1.0,
+        base: 0.10 + r() * 0.40,
+        amp: 0.05 + r() * 0.24,
+        spd: 0.4 + r() * 1.6,
+        ph: r() * 6.2832,
+        vy: 0.004 + r() * 0.010
+      });
+    }
+  }
+
+  const t0 = performance.now();
+  function drawStars(now) {
+    const s = (now - t0) / 1000;
+    sctx.clearRect(0, 0, W, H);
+    sctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < twinkles.length; i++) {
+      const st = twinkles[i];
+      const a = st.base + Math.sin(s * st.spd + st.ph) * st.amp;
+      if (a <= 0.03) continue;
+      const y = (st.y - s * st.vy * 60) % H;
+      sctx.fillStyle = "rgba(255,255,255," + Math.min(0.9, a).toFixed(3) + ")";
+      sctx.beginPath(); sctx.arc(st.x, y < 0 ? y + H : y, st.r, 0, 6.2832); sctx.fill();
+    }
+    sctx.globalCompositeOperation = "source-over";
+    requestAnimationFrame(drawStars);
+  }
+
+  /* ================= 尺寸 / 轮播 ================= */
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    starsCanvas.width = Math.round(W * dpr);
+    starsCanvas.height = Math.round(H * dpr);
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paintBackgrounds();
+    seedTwinkles();
+  }
+
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(resize, 260);
+  });
+
+  let current = 0;
+  function show(i) {
+    bgLayers.forEach((cv, k) => cv.classList.toggle("on", k === i));
+  }
+  function next() {
+    current = (current + 1) % bgLayers.length;
+    show(current);
+  }
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  resize();
+  show(0);
+
+  // ?scene=1..5 指定初始背景（调试用）
+  const forced = parseInt(new URLSearchParams(location.search).get("scene") || "0", 10);
+  if (forced >= 1 && forced <= bgLayers.length) {
+    current = forced - 1;
+    show(current);
+  }
+
+  if (!reduce) {
+    requestAnimationFrame(drawStars);
+    setInterval(next, 9000);
+    window.addEventListener("pointerdown", (e) => {
+      if (e.target.closest(".card")) return;
+      next();
+    });
+  }
+})();
+</script>
+</body>
+</html>
